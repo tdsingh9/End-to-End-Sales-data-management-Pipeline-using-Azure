@@ -13,3 +13,5 @@ The tools that are covered in this project are,
 7. Microsoft Power BI
 
 The use case for this project was to build an end to end solution by ingesting the tables from on-premise SQL Server database using Azure Data Factory and then store the data in Azure Data Lake. Then Azure databricks was used to transform the RAW data to the most cleanest form of data and then we  used Azure Synapse Analytics to load the clean data and finally using Microsoft Power BI we integrated with Azure synapse analytics to build an interactive dashboard. Also, we are using Azure Active Directory (AAD) and Azure Key Vault for the monitoring and governance purpose. 
+
+![image](https://github.com/tdsingh9/End-to-End-Sales-data-management-Pipeline-using-Azure/assets/86833210/f76bbf56-2a4a-4013-b667-5f0343f7d030)
