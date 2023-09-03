@@ -152,4 +152,22 @@ Thus our pipeline got created .
 
 ----------------------PART3-----Data Tranformation:-
 
+setting up the azure databricks compute and workspace in shared version .
+
+added 
+
+To mount an Azure Data Lake Storage Gen2 filesystem or a folder inside it, use the following commands:
+
+configs = {
+  "fs.azure.account.auth.type": "CustomAccessToken",
+  "fs.azure.account.custom.token.provider.class": spark.conf.get("spark.databricks.passthrough.adls.gen2.tokenProviderClassName")
+}
+
+# Optionally, you can add <directory-name> to the source URI of your mount point.
+dbutils.fs.mount(
+  source = "abfss://<container-name>@<storage-account-name>.dfs.core.windows.net/",
+  mount_point = "/mnt/<mount-name>",
+  extra_configs = configs)
+
+available in this link:-  https://learn.microsoft.com/en-us/azure/databricks/data-governance/credential-passthrough/adls-passthrough
 
