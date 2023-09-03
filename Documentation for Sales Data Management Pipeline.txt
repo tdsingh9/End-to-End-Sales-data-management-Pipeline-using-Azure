@@ -1,0 +1,155 @@
+Documentation for process used in creating the azure data pipeline project 
+
+------------------------PART1 --------Environment Setup:-
+
+1) loaded table adventure works in ssms 
+	->created the credentials for adv works database in order to make a connection for the on prem db to the Azure 
+	->assign the reader access role to the created user in the above procedure in order to fetch data from DB  
+
+2) Azure key Vault setup 
+	-> created an azure key vault
+	-> update the IAM role and added member with admin acces 
+	-> created the secrets of username and password
+3) Download and Connect with the Self Hosted Integration runtime (SHIR)
+	Why there's need for SHIR ?
+	Ans. To perform any operation we need to have 2 things :
+		->compute power and infrastructure.
+		it is basically the compute infrastructure in Azure Data Factory which helps in establishing connection between loacl machine server and ADF .
+
+-----------------------PART2--------Data Ingestion :-
+
+-->connection of on prem SQL DB with ADF.
+
+For this we needed to create a linked service using SHIR .
+
+copy the server name from ssms while creating LS
+copy the database name from SSMS while LS creation
+for password we will use the secrets which we created in azure key vault 
+while doing this we need to create another linked service  for connecting Azure key vault to ADF.
+
+After this while we tried to enter the secret name , the portal was shwoing failed to load secrets . This was because we ADF was connected to AKV service but it didnt had reader permissions to read the secrets .
+
+For this we need to create an IAM role which we need to assign to our project ADF .
+
+finally after this we tested connection and created linked service
+
+
+Creation of copy all pipeline :
+
+--> creation of lookup activity 
+
+1) Adding source dataset
+
+NEW-->SQL server --> Use the LS created above --> In table name we are not going to select a particular table and leave it as it is.
+
+2) Use Query option :
+Here we are going to use an Sql script to fetch all the schema and table names we need to look for.
+
+select s.name as schema_name , t.name as table_name
+from sys.tables as t
+inner join sys.schemas as s
+on t.schema_id=s.schema_id
+where s.name='SalesLT';
+
+here we are selecting the names of schema and tables which have schema name as SalesLT.
+
+also deselect first row only option .
+
+
+Output of LookUp Activity in our case was :
+
+{
+	"count": 10,
+	"value": [
+		{
+			"schema_name": "SalesLT",
+			"table_name": "Address"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "Customer"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "CustomerAddress"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "Product"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "ProductCategory"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "ProductDescription"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "ProductModel"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "ProductModelProductDescription"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "SalesOrderDetail"
+		},
+		{
+			"schema_name": "SalesLT",
+			"table_name": "SalesOrderHeader"
+		}
+	],
+	"effectiveIntegrationRuntime": "integrationRuntime1",
+	"billingReference": {
+		"activityType": "PipelineActivity",
+		"billableDuration": [
+			{
+				"meterType": "SelfhostedIR",
+				"duration": 0.016666666666666666,
+				"unit": "Hours"
+			}
+		]
+	},
+	"durationInQueue": {
+		"integrationRuntimeQueue": 4
+	}
+}
+
+
+3) Creating for each activity
+
+--> Item field 
+add dyanamic content 
+
+@activity('Look for all tables').output.value 
+
+now in activity inside for each activity we created Copy data activity
+
+3.1) copy data Activity
+
+Source details :- 
+
+source dataset 
+NEW --> SQL server --> LS which we created in above step to connect on prem server is used here also . --> Table Name we are not going to specify anything as we are creating a dynamic dataset . 
+
+Use Query 
+
+Query -- > Add Dynamic content --> @{concat('SELECT * FROM ', item().schema_name, '.', item().table_name)}
+
+
+Sink Details :-
+
+Sink dataset 
+NEW--> Azure data lake Gen 2 --> Parquet format (Its faster than genral file formats / Also note that you need to have JVM (Java Virtual Machine) installed in your on prem device as SHIR needs this when we are considering parquet files.-->
+for file path we are selecting bronze container-->
+for further spcifying the folder structure while creation of parquet files we are going to follow this structure (bronze/Schema/Tablename/Tablename.parquet)-->Create parameters Schemaname  and tablename of string type .for their values we need to create Dyamic content @item().schema_name and @item().table_name.--> now we are going to use these parameters to describe a generalized file structure in file path and enter code @{concat(dataset().schemaname, '/' ,dataset().tablename)} and @{concat(dataset().tablename,'.parquet') } .
+
+
+Thus our pipeline got created .
+
+----------------------PART3-----Data Tranformation:-
+
+
